@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>發票記帳掃描 v8</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef3f4;color:#172126;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.box{width:min(92vw,460px);padding:22px;border:1px solid #d9e1e5;border-radius:8px;background:#fff;box-shadow:0 16px 36px rgba(22,33,38,.08)}h1{margin:0 0 10px;font-size:22px}p{margin:0 0 14px;color:#66757f;line-height:1.6}.btn{display:inline-flex;min-height:42px;align-items:center;padding:0 14px;border-radius:8px;background:#0f766e;color:#fff;text-decoration:none;font-weight:700}.error{color:#b91c1c;white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <main id="loader" class="box">
+    <h1>正在載入 v8</h1>
+    <p>這版會套用：QR 品項帶入備註、費用類別更新。</p>
+    <p id="msg">請稍等...</p>
+  </main>
+<script>
+(async function(){
+  const msg=document.getElementById('msg');
+  try{
+    const response=await fetch('index.html?base=' + Date.now(), {cache:'no-store'});
+    if(!response.ok) throw new Error('讀取主程式失敗 HTTP ' + response.status);
+    let html=await response.text();
+
+    html=html.replace('品項只顯示在下方，會嘗試 Big5 / UTF-8 / Base64 / Shift-JIS 還原，不自動寫入備註。','品項會嘗試 Big5 / UTF-8 / Base64 / Shift-JIS 還原，成功時會同步帶到備註欄，儲存前仍可手動修改。');
+    html=html.replace('<option value="">未分類</option><option>交通</option><option>餐費</option><option>文具</option><option>郵資</option><option>設備</option><option>軟體</option><option>交際</option><option>其他</option>','<option value="">未分類</option><option>五金用品</option><option>加油</option><option>停車費</option><option>餐費</option><option>文具</option><option>設備</option><option>軟體</option><option>交際</option><option>其他</option>');
+
+    const oldRender1="function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); $('qrItems').textContent=item||state.qrLeft?'已讀取左碼；沒有可靠品項或品項未完整。':state.qrRight?'已讀取右碼；請再掃左碼。':'尚未讀取'; if(item)$('qrItems').textContent=item; }";
+    const oldRender2="function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); if(item){$('qrItems').textContent=item;}else if(state.qrLeft){$('qrItems').textContent='已讀取左碼；沒有可靠品項或品項未完整。';}else if(state.qrRight){$('qrItems').textContent='已讀取右碼；請再掃左碼。';}else{$('qrItems').textContent='尚未讀取';} }";
+    const newRender="function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); if(item){$('qrItems').textContent=item; applyQrItemsToNote(item);}else if(state.qrLeft){$('qrItems').textContent='已讀取左碼；沒有可靠品項或品項未完整。';}else if(state.qrRight){$('qrItems').textContent='已讀取右碼；請再掃左碼。';}else{$('qrItems').textContent='尚未讀取';} }\nfunction applyQrItemsToNote(item){const note=$('note');if(!note||!item)return;const block='QR品項:\\n'+item;const current=note.value.trim();const cleaned=current.replace(/(?:^|\\n)QR品項:\\n[\\s\\S]*$/,'').trim();note.value=cleaned?cleaned+'\\n\\n'+block:block;}";
+    if(html.includes(oldRender1)) html=html.replace(oldRender1,newRender);
+    else if(html.includes(oldRender2)) html=html.replace(oldRender2,newRender);
+    else throw new Error('找不到 QR 備註套用位置');
+
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(err){
+    msg.className='error';
+    msg.textContent='v8 載入失敗：' + (err && err.message ? err.message : err);
+  }
+})();
+</script>
+</body>
+</html>
