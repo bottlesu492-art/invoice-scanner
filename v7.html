@@ -18,6 +18,11 @@
   html = html.replace("function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); $('qrItems').textContent=item||state.qrLeft?'已讀取左碼；沒有可靠品項或品項未完整。':state.qrRight?'已讀取右碼；請再掃左碼。':'尚未讀取'; if(item)$('qrItems').textContent=item; }", patchedRender);
   html = html.replace("function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); if(item){$('qrItems').textContent=item;}else if(state.qrLeft){$('qrItems').textContent='已讀取左碼；沒有可靠品項或品項未完整。';}else if(state.qrRight){$('qrItems').textContent='已讀取右碼；請再掃左碼。';}else{$('qrItems').textContent='尚未讀取';} }", patchedRender);
 
+  html = html.replace(/function findDate\(t\)\{[\s\S]*?\nfunction findTaxIds/, 'function findTaxIds');
+  html = html.replace(/function findMoney\(text,labels\)\{[\s\S]*?\nfunction indexesOf/, 'function indexesOf');
+  html = html.replace(/function findSeller\(lines\)\{[\s\S]*?\nfunction hasCjk/, 'function hasCjk');
+  html = html.replace(/function applyParsedInvoice\(parsed\)\{Object\.entries\(parsed\)\.forEach\(\(\[k,v\]\)=>\{if\(v!==''&&\$\(k\)\)\$\(k\)\.value=v;\}\);\}/, "function applyParsedInvoice(parsed){Object.entries(parsed).forEach(([k,v])=>{if($(k))$(k).value=v;});}");
+
   const ocrParser = String.raw`function parseOcrText(text){const n=normalizeText(cleanOcrOutput(text));const lines=toLines(n);const invoiceNo=findInvoiceNo(n,lines);const sellerTaxId=findSellerTaxId(n,lines);return{invoiceNo:invoiceNo,invoiceDate:findDate(n,lines),sellerName:findSeller(lines,sellerTaxId),sellerTaxId:sellerTaxId,buyerTaxId:findBuyerTaxId(n,lines,sellerTaxId,invoiceNo),totalAmount:findTotalAmount(n,lines),taxAmount:findTaxAmount(n,lines)};}
 function findSellerTaxId(text,lines){for(const line of lines){if(/(NO|統編|統一編號|營業人|賣方|銷售人)/.test(line)){const ids=idsIn(line);if(ids.length)return ids[0];}}const all=idsIn(text);return all[0]||'';}
 function findBuyerTaxId(text,lines,sellerTaxId,invoiceNo){for(const line of lines){if(/(買方|買受人|買受統編|客戶統編|客戶)/.test(line)){const ids=idsIn(line).filter(id=>id!==sellerTaxId&&id!==invoiceNo.slice(2));if(ids.length)return ids[0];}}return'';}
@@ -30,10 +35,6 @@ const itemNums=[];for(const line of lines){if(hasCjk(line)&&!banned.test(line)&&
 return itemNums.length?String(itemNums.reduce((a,b)=>a+b,0)):'';}
 function findTaxAmount(text,lines){for(const line of lines){if(/(營業稅|稅額|稅金)/.test(line)&&!/稅計/.test(line)){const nums=moneyNumbers(line).filter(n=>n>=0&&n<1000000);if(nums.length)return String(nums[nums.length-1]);}}return'';}`;
   html = html.replace(/function parseOcrText\(text\)\{[\s\S]*?\nfunction normalizeText/, ocrParser + '\nfunction normalizeText');
-  html = html.replace(/function findDate\(t\)\{[\s\S]*?\nfunction findTaxIds/, 'function findTaxIds');
-  html = html.replace(/function findMoney\(text,labels\)\{[\s\S]*?\nfunction indexesOf/, 'function indexesOf');
-  html = html.replace(/function findSeller\(lines\)\{[\s\S]*?\nfunction hasCjk/, 'function hasCjk');
-  html = html.replace(/function applyParsedInvoice\(parsed\)\{Object\.entries\(parsed\)\.forEach\(\(\[k,v\]\)=>\{if\(v!==''&&\$\(k\)\)\$\(k\)\.value=v;\}\);\}/, "function applyParsedInvoice(parsed){Object.entries(parsed).forEach(([k,v])=>{if($(k))$(k).value=v;});}");
 
   document.open();
   document.write(html);
