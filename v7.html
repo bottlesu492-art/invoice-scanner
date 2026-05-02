@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>發票記帳掃描 v7</title>
+</head>
+<body>
+<script>
+(async function(){
+  const response = await fetch('index.html?v=6&patch=' + Date.now(), { cache: 'no-store' });
+  let html = await response.text();
+
+  html = html.replace('品項只顯示在下方，會嘗試 Big5 / UTF-8 / Base64 / Shift-JIS 還原，不自動寫入備註。', '品項會嘗試 Big5 / UTF-8 / Base64 / Shift-JIS 還原，成功時會同步帶到備註欄，儲存前仍可手動修改。');
+
+  html = html.replace('<option value="">未分類</option><option>交通</option><option>餐費</option><option>文具</option><option>郵資</option><option>設備</option><option>軟體</option><option>交際</option><option>其他</option>', '<option value="">未分類</option><option>五金用品</option><option>加油</option><option>停車費</option><option>餐費</option><option>文具</option><option>設備</option><option>軟體</option><option>交際</option><option>其他</option>');
+
+  const patchedRender = "function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); if(item){$('qrItems').textContent=item; applyQrItemsToNote(item);}else if(state.qrLeft){$('qrItems').textContent='已讀取左碼；沒有可靠品項或品項未完整。';}else if(state.qrRight){$('qrItems').textContent='已讀取右碼；請再掃左碼。';}else{$('qrItems').textContent='尚未讀取';} }\nfunction applyQrItemsToNote(item){const note=$('note');if(!note||!item)return;const block=`QR品項:\\n${item}`;const current=note.value.trim();const cleaned=current.replace(/(?:^|\\n)QR品項:\\n[\\s\\S]*$/,'').trim();note.value=cleaned?`${cleaned}\\n\\n${block}`:block;}";
+
+  html = html.replace("function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); $('qrItems').textContent=item||state.qrLeft?'已讀取左碼；沒有可靠品項或品項未完整。':state.qrRight?'已讀取右碼；請再掃左碼。':'尚未讀取'; if(item)$('qrItems').textContent=item; }", patchedRender);
+  html = html.replace("function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); if(item){$('qrItems').textContent=item;}else if(state.qrLeft){$('qrItems').textContent='已讀取左碼；沒有可靠品項或品項未完整。';}else if(state.qrRight){$('qrItems').textContent='已讀取右碼；請再掃左碼。';}else{$('qrItems').textContent='尚未讀取';} }", patchedRender);
+
+  document.open();
+  document.write(html);
+  document.close();
+})();
+</script>
+</body>
+</html>
