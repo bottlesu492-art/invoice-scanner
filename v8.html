@@ -11,7 +11,7 @@
 <body>
   <main id="loader" class="box">
     <h1>正在載入 v8</h1>
-    <p>這版會套用：QR 品項帶入備註、費用類別更新。</p>
+    <p>這版會套用：QR 品項帶入備註、費用類別更新、紙本發票欄位修正。</p>
     <p id="msg">請稍等...</p>
   </main>
 <script>
@@ -31,6 +31,16 @@
     if(html.includes(oldRender1)) html=html.replace(oldRender1,newRender);
     else if(html.includes(oldRender2)) html=html.replace(oldRender2,newRender);
     else throw new Error('找不到 QR 備註套用位置');
+
+    const newParser=String.raw`function parseOcrText(text){const n=normalizeText(cleanOcrOutput(text));const lines=toLines(n);const invoiceNo=findInvoiceNo(n,lines);const sellerTaxId=parseSellerTaxIdV8(n,lines);return{invoiceNo:invoiceNo,invoiceDate:parseDateV8(lines,n),sellerName:parseSellerNameV8(lines,sellerTaxId),sellerTaxId:sellerTaxId,buyerTaxId:parseBuyerTaxIdV8(lines,sellerTaxId,invoiceNo),totalAmount:parseTotalV8(lines),taxAmount:parseTaxV8(lines)};}
+function parseSellerTaxIdV8(text,lines){for(const line of lines){if(/(NO|統編|統一編號|營業人|賣方|銷售人)/.test(line)){const ids=idsIn(line);if(ids.length)return ids[0];}}const all=idsIn(text);return all[0]||'';}
+function parseBuyerTaxIdV8(lines,sellerTaxId,invoiceNo){for(const line of lines){if(/(買方|買受人|買受統編|客戶統編|客戶)/.test(line)){const ids=idsIn(line).filter(id=>id!==sellerTaxId&&id!==invoiceNo.slice(2));if(ids.length)return ids[0];}}return'';}
+function parseDateV8(lines,text){for(const line of lines){let m=line.match(/([0-9]{3})\s*[\/.-]\s*([0-9]{1,2})\s*[\/.-]\s*([0-9]{1,2})/);if(m)return fmtDate(Number(m[1])+1911,m[2],m[3]);m=line.match(/(20[0-9]{2})\s*[\/.-]\s*([0-9]{1,2})\s*[\/.-]\s*([0-9]{1,2})/);if(m)return fmtDate(m[1],m[2],m[3]);}return'';}
+function parseSellerNameV8(lines,sellerTaxId){const banned=/(中華民國|收銀機|統一發票|電子發票|證明聯|收執聯|收據|明細|日期|發票號碼|隨機碼|統編|統一編號|總計|合計|金額|稅額|時間|TEL|電話|地址|QR|APP|NO)/;const idx=lines.findIndex(l=>sellerTaxId&&l.includes(sellerTaxId));if(idx>0){for(let i=idx-1;i>=0;i--){const l=lines[i];if(hasCjk(l)&&!banned.test(l)&&l.length>=2&&l.length<=30)return l;}}for(const l of lines){if(hasCjk(l)&&!banned.test(l)&&l.length>=2&&l.length<=30)return l;}return'';}
+function parseTotalV8(lines){const labelRe=/(現金|總計|總金額|總額|合計|應付金額|應付|應收|實收|刷卡|信用卡)/;const banned=/(找零|累計|本次點|點數|投票|稅計|統編|統一編號|TEL|電話|NO)/;for(const line of lines){if(labelRe.test(line)&&!banned.test(line)){const nums=moneyNumbers(line).filter(n=>n>0&&n<1000000);if(nums.length)return String(nums[nums.length-1]);}}const itemNums=[];for(const line of lines){if(hasCjk(line)&&!banned.test(line)&&!/(中華民國|發票|商行|TEL|時間)/.test(line)){const nums=moneyNumbers(line).filter(n=>n>0&&n<10000);if(nums.length)itemNums.push(nums[nums.length-1]);}}return itemNums.length?String(itemNums.reduce((a,b)=>a+b,0)):'';}
+function parseTaxV8(lines){for(const line of lines){if(/(營業稅|稅額|稅金)/.test(line)&&!/稅計/.test(line)){const nums=moneyNumbers(line).filter(n=>n>=0&&n<1000000);if(nums.length)return String(nums[nums.length-1]);}}return'';}`;
+    html=html.replace(/function parseOcrText\(text\)\{[\s\S]*?\nfunction normalizeText/, newParser+'\nfunction normalizeText');
+    html=html.replace(/function applyParsedInvoice\(parsed\)\{Object\.entries\(parsed\)\.forEach\(\(\[k,v\]\)=>\{if\(v!==''&&\$\(k\)\)\$\(k\)\.value=v;\}\);\}/,"function applyParsedInvoice(parsed){Object.entries(parsed).forEach(([k,v])=>{if($(k))$(k).value=v;});}");
 
     document.open();
     document.write(html);
