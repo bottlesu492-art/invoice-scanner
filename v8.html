@@ -11,7 +11,7 @@
 <body>
   <main id="loader" class="box">
     <h1>正在載入 v8</h1>
-    <p>這版會套用：QR 品項帶入備註、費用類別更新、紙本發票欄位修正、未稅/稅額/含稅整理。</p>
+    <p>這版會套用：QR 品項帶入備註、費用類別更新、未稅/稅額跟著含稅總額自動變動。</p>
     <p id="msg">請稍等...</p>
   </main>
 <script>
@@ -25,8 +25,10 @@
     html=html.replace('品項只顯示在下方，會嘗試 Big5 / UTF-8 / Base64 / Shift-JIS 還原，不自動寫入備註。','品項會嘗試 Big5 / UTF-8 / Base64 / Shift-JIS 還原，成功時會同步帶到備註欄，儲存前仍可手動修改。');
     html=html.replace('<option value="">未分類</option><option>交通</option><option>餐費</option><option>文具</option><option>郵資</option><option>設備</option><option>軟體</option><option>交際</option><option>其他</option>','<option value="">未分類</option><option>五金用品</option><option>加油</option><option>停車費</option><option>餐費</option><option>文具</option><option>設備</option><option>軟體</option><option>交際</option><option>其他</option>');
     html=html.replace('<label for="totalAmount">總金額</label>','<label for="totalAmount">含稅總額</label>');
-    html=html.replace('<div class="field"><label for="taxAmount">稅額</label><input id="taxAmount" inputmode="decimal"></div>','<div class="field"><label for="untaxedAmount">未稅金額</label><input id="untaxedAmount" inputmode="decimal"></div><div class="field"><label for="taxAmount">稅額</label><input id="taxAmount" inputmode="decimal"></div>');
+    html=html.replace('<div class="field"><label for="taxAmount">稅額</label><input id="taxAmount" inputmode="decimal"></div>','<div class="field"><label for="untaxedAmount">未稅金額</label><input id="untaxedAmount" inputmode="decimal" readonly></div><div class="field"><label for="taxAmount">稅額</label><input id="taxAmount" inputmode="decimal" readonly></div>');
     html=html.replace(/'totalAmount',\s*'taxAmount'/,"'totalAmount','untaxedAmount','taxAmount'");
+    html=html.replace('function init(){bindEvents();loadSettings();renderRecent(loadRecent());}', 'function init(){bindEvents();loadSettings();setupMoneySyncV8();renderRecent(loadRecent());}');
+    html=html.replace('function bindEvents(){', "function setupMoneySyncV8(){const total=$('totalAmount'),untaxed=$('untaxedAmount'),tax=$('taxAmount');if(!total||!untaxed||!tax)return;untaxed.readOnly=true;tax.readOnly=true;untaxed.tabIndex=-1;tax.tabIndex=-1;const recalc=()=>{const n=Number(String(total.value||'').replace(/,/g,'').trim());if(!Number.isFinite(n)||n<=0){untaxed.value='';tax.value='';return;}const beforeTax=Math.floor(n/1.05);untaxed.value=String(beforeTax);tax.value=String(n-beforeTax);};total.addEventListener('input',recalc);total.addEventListener('change',recalc);setTimeout(recalc,0);}function bindEvents(){");
 
     const oldRender1="function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); $('qrItems').textContent=item||state.qrLeft?'已讀取左碼；沒有可靠品項或品項未完整。':state.qrRight?'已讀取右碼；請再掃左碼。':'尚未讀取'; if(item)$('qrItems').textContent=item; }";
     const oldRender2="function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); if(item){$('qrItems').textContent=item;}else if(state.qrLeft){$('qrItems').textContent='已讀取左碼；沒有可靠品項或品項未完整。';}else if(state.qrRight){$('qrItems').textContent='已讀取右碼；請再掃左碼。';}else{$('qrItems').textContent='尚未讀取';} }";
