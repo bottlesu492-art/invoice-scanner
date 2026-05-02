@@ -5,15 +5,34 @@
 ## 架構
 
 - GitHub Pages：前端網頁、即時相機掃描、拍照掃 QR、選相簿 QR、OCR、確認表單。
-- Google Apps Script：後端 `Code.gs`，接收資料並寫入 Google Sheet / Google Drive。
+- Google Apps Script：後端 `Code.gs`，接收資料、檢查 API token，並寫入 Google Sheet / Google Drive。
 
 ## 隱私與安全
 
-這個 repo 如果是 Public，程式碼和 GitHub Pages 網站都可能被其他人看到。不要把 GAS `/exec` 網址、token、公司資料或私人資訊 commit 到 repo。
+這個 repo 可以設為 Public，但不要把 GAS `/exec` 網址、API token、公司資料或私人資訊 commit 到 repo。
 
-目前前端不再把 GAS 網址寫在公開程式碼裡。第一次使用時，網頁會要求貼上 GAS `/exec` 網址，並只存在該裝置瀏覽器的 localStorage。
+前端不會把 GAS 網址或 token 寫在公開程式碼裡。第一次使用時，網頁會要求貼上 GAS `/exec` 網址與 API token，並只存在該裝置瀏覽器的 localStorage。
 
-如果 GAS 網址曾經 commit 到公開 repo，請重新建立一個新的 GAS Web App 部署網址，並停止使用舊網址。
+如果 GAS 網址曾經 commit 到公開 repo，請更新 GAS 程式碼成 token 版並重新部署。更保險的做法是建立新的 Web App 部署，舊部署不要再用。
+
+## GAS 設定
+
+1. 到 Apps Script 貼上 token 版 `Code.gs`。
+2. 儲存後執行：
+
+```text
+setupInvoiceBackend
+```
+
+3. Apps Script 會回傳一組 `token`，請保存。
+4. 重新部署 Web App，複製 `/exec` 結尾的網址。
+5. 第一次開 GitHub Pages 時，貼上 `/exec` 網址與 token。
+
+如果需要換 token，可執行：
+
+```text
+resetInvoiceApiToken
+```
 
 ## 開啟 GitHub Pages
 
@@ -33,7 +52,7 @@ https://bottlesu492-art.github.io/invoice-scanner/
 
 ## 使用
 
-1. 第一次開啟時，貼上新的 GAS `/exec` 網址並按「記住」。
+1. 第一次開啟時，貼上 GAS `/exec` 網址與 API token，按「記住」。
 2. QR 發票：可用「即時掃描」、「拍照掃 QR」或「選相簿 QR」。
 3. 傳統發票：切到 OCR，選「拍照辨識」或「選相簿辨識」，再按「辨識文字」。
 4. 手動資料：切到手動，選「拍照附圖」或「選相簿附圖」。
