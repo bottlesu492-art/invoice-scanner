@@ -4,16 +4,18 @@
 
 ## 架構
 
-- GitHub Pages：前端網頁、即時相機掃描、拍照掃 QR、OCR、確認表單。
+- GitHub Pages：前端網頁、即時相機掃描、拍照掃 QR、選相簿 QR、OCR、確認表單。
 - Google Apps Script：後端 `Code.gs`，接收資料並寫入 Google Sheet / Google Drive。
 
-## 目前 GAS 後端
+## GAS 後端
+
+前端已內建目前的 GAS `/exec` 網址，不會在畫面上顯示後端設定欄位。
 
 ```text
 https://script.google.com/macros/s/AKfycbzzMQAZGkKTLwQfVctseKg7lFSY2TJBiyKL2tVNwIG74ZFJxOs78f6L0yDbmM4I6wXl/exec
 ```
 
-前端已經預填這個網址。若 GAS 重新部署後網址改變，請在網頁上方「後端設定」貼入新的 `/exec` 網址，按「記住網址」。
+如果 GAS 重新部署後換了網址，需要更新 `index.html` 裡的 `DEFAULT_GAS_URL`。
 
 ## 開啟 GitHub Pages
 
@@ -33,11 +35,12 @@ https://bottlesu492-art.github.io/invoice-scanner/
 
 ## 使用
 
-1. QR 發票：按「即時掃描」或「拍照掃 QR」。
-2. 傳統發票：切到 OCR，拍照後按「辨識文字」。
-3. 檢查右側欄位。
-4. 按「儲存」。
-5. 到 Google Sheet 確認資料是否寫入。
+1. QR 發票：可用「即時掃描」、「拍照掃 QR」或「選相簿 QR」。
+2. 傳統發票：切到 OCR，選「拍照辨識」或「選相簿辨識」，再按「辨識文字」。
+3. 手動資料：切到手動，選「拍照附圖」或「選相簿附圖」。
+4. 檢查右側欄位。
+5. 按「儲存」。
+6. 到 Google Sheet 確認資料是否寫入。
 
 ## 注意
 
