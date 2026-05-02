@@ -12,13 +12,28 @@
   let html = await response.text();
 
   html = html.replace('品項只顯示在下方，會嘗試 Big5 / UTF-8 / Base64 / Shift-JIS 還原，不自動寫入備註。', '品項會嘗試 Big5 / UTF-8 / Base64 / Shift-JIS 還原，成功時會同步帶到備註欄，儲存前仍可手動修改。');
-
   html = html.replace('<option value="">未分類</option><option>交通</option><option>餐費</option><option>文具</option><option>郵資</option><option>設備</option><option>軟體</option><option>交際</option><option>其他</option>', '<option value="">未分類</option><option>五金用品</option><option>加油</option><option>停車費</option><option>餐費</option><option>文具</option><option>設備</option><option>軟體</option><option>交際</option><option>其他</option>');
 
   const patchedRender = "function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); if(item){$('qrItems').textContent=item; applyQrItemsToNote(item);}else if(state.qrLeft){$('qrItems').textContent='已讀取左碼；沒有可靠品項或品項未完整。';}else if(state.qrRight){$('qrItems').textContent='已讀取右碼；請再掃左碼。';}else{$('qrItems').textContent='尚未讀取';} }\nfunction applyQrItemsToNote(item){const note=$('note');if(!note||!item)return;const block=`QR品項:\\n${item}`;const current=note.value.trim();const cleaned=current.replace(/(?:^|\\n)QR品項:\\n[\\s\\S]*$/,'').trim();note.value=cleaned?`${cleaned}\\n\\n${block}`:block;}";
-
   html = html.replace("function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); $('qrItems').textContent=item||state.qrLeft?'已讀取左碼；沒有可靠品項或品項未完整。':state.qrRight?'已讀取右碼；請再掃左碼。':'尚未讀取'; if(item)$('qrItems').textContent=item; }", patchedRender);
   html = html.replace("function renderQrState(){ $('qrLeft').textContent=state.qrLeft; $('qrRight').textContent=state.qrRight; const item=parseQrItems(state.qrLeft,state.qrRight); if(item){$('qrItems').textContent=item;}else if(state.qrLeft){$('qrItems').textContent='已讀取左碼；沒有可靠品項或品項未完整。';}else if(state.qrRight){$('qrItems').textContent='已讀取右碼；請再掃左碼。';}else{$('qrItems').textContent='尚未讀取';} }", patchedRender);
+
+  const ocrParser = String.raw`function parseOcrText(text){const n=normalizeText(cleanOcrOutput(text));const lines=toLines(n);const invoiceNo=findInvoiceNo(n,lines);const sellerTaxId=findSellerTaxId(n,lines);return{invoiceNo:invoiceNo,invoiceDate:findDate(n,lines),sellerName:findSeller(lines,sellerTaxId),sellerTaxId:sellerTaxId,buyerTaxId:findBuyerTaxId(n,lines,sellerTaxId,invoiceNo),totalAmount:findTotalAmount(n,lines),taxAmount:findTaxAmount(n,lines)};}
+function findSellerTaxId(text,lines){for(const line of lines){if(/(NO|統編|統一編號|營業人|賣方|銷售人)/.test(line)){const ids=idsIn(line);if(ids.length)return ids[0];}}const all=idsIn(text);return all[0]||'';}
+function findBuyerTaxId(text,lines,sellerTaxId,invoiceNo){for(const line of lines){if(/(買方|買受人|買受統編|客戶統編|客戶)/.test(line)){const ids=idsIn(line).filter(id=>id!==sellerTaxId&&id!==invoiceNo.slice(2));if(ids.length)return ids[0];}}return'';}
+function findDate(t,lines){for(const line of lines){let m=line.match(/([0-9]{3})\s*[\/.-]\s*([0-9]{1,2})\s*[\/.-]\s*([0-9]{1,2})/);if(m)return fmtDate(Number(m[1])+1911,m[2],m[3]);m=line.match(/(20[0-9]{2})\s*[\/.-]\s*([0-9]{1,2})\s*[\/.-]\s*([0-9]{1,2})/);if(m)return fmtDate(m[1],m[2],m[3]);}
+const txt=String(t||'');let m=txt.match(/([0-9]{3})年\s*([0-9]{1,2})月\s*([0-9]{1,2})日/);if(m)return fmtDate(Number(m[1])+1911,m[2],m[3]);m=txt.match(/(20[0-9]{2})年\s*([0-9]{1,2})月\s*([0-9]{1,2})日/);if(m)return fmtDate(m[1],m[2],m[3]);return'';}
+function findSeller(lines,sellerTaxId){const banned=/(中華民國|收銀機|統一發票|電子發票|證明聯|收執聯|收據|明細|日期|發票號碼|隨機碼|統編|統一編號|總計|合計|金額|稅額|時間|TEL|電話|地址|QR|APP|NO)/;const taxIndex=lines.findIndex(l=>sellerTaxId&&l.includes(sellerTaxId));if(taxIndex>0){for(let i=taxIndex-1;i>=0;i--){const l=lines[i];if(hasCjk(l)&&!banned.test(l)&&l.length>=2&&l.length<=30)return l;}}
+for(const l of lines){if(hasCjk(l)&&!banned.test(l)&&l.length>=2&&l.length<=30)return l;}return'';}
+function findTotalAmount(text,lines){const labelRe=/(現金|總計|總金額|總額|合計|應付金額|應付|應收|實收|刷卡|信用卡)/;const banned=/(找零|累計|本次點|點數|投票|稅計|統編|統一編號|TEL|電話|NO)/;for(const line of lines){if(labelRe.test(line)&&!banned.test(line)){const nums=moneyNumbers(line).filter(n=>n>0&&n<1000000);if(nums.length)return String(nums[nums.length-1]);}}
+const itemNums=[];for(const line of lines){if(hasCjk(line)&&!banned.test(line)&&!/(中華民國|發票|商行|TEL|時間)/.test(line)){const nums=moneyNumbers(line).filter(n=>n>0&&n<10000);if(nums.length)itemNums.push(nums[nums.length-1]);}}
+return itemNums.length?String(itemNums.reduce((a,b)=>a+b,0)):'';}
+function findTaxAmount(text,lines){for(const line of lines){if(/(營業稅|稅額|稅金)/.test(line)&&!/稅計/.test(line)){const nums=moneyNumbers(line).filter(n=>n>=0&&n<1000000);if(nums.length)return String(nums[nums.length-1]);}}return'';}`;
+  html = html.replace(/function parseOcrText\(text\)\{[\s\S]*?\nfunction normalizeText/, ocrParser + '\nfunction normalizeText');
+  html = html.replace(/function findDate\(t\)\{[\s\S]*?\nfunction findTaxIds/, 'function findTaxIds');
+  html = html.replace(/function findMoney\(text,labels\)\{[\s\S]*?\nfunction indexesOf/, 'function indexesOf');
+  html = html.replace(/function findSeller\(lines\)\{[\s\S]*?\nfunction hasCjk/, 'function hasCjk');
+  html = html.replace(/function applyParsedInvoice\(parsed\)\{Object\.entries\(parsed\)\.forEach\(\(\[k,v\]\)=>\{if\(v!==''&&\$\(k\)\)\$\(k\)\.value=v;\}\);\}/, "function applyParsedInvoice(parsed){Object.entries(parsed).forEach(([k,v])=>{if($(k))$(k).value=v;});}");
 
   document.open();
   document.write(html);
