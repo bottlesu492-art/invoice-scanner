@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>發票記帳掃描 v9 穩定版</title>
+  <title>發票記帳掃描 v9</title>
   <style>
     *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef3f4;color:#172126;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.box{width:min(92vw,460px);padding:22px;border:1px solid #d9e1e5;border-radius:8px;background:#fff;box-shadow:0 16px 36px rgba(22,33,38,.08)}h1{margin:0 0 10px;font-size:22px}p{margin:0 0 14px;color:#66757f;line-height:1.6}.error{color:#b91c1c;white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:10px 14px;border-radius:8px;background:#0f766e;color:white;text-decoration:none;font-weight:700}
   </style>
 </head>
 <body>
   <main class="box">
-    <h1>正在載入 v9 穩定版</h1>
-    <p>已停用 OCR 強化修補，回到 QR 順暢的版本。</p>
+    <h1>正在載入 v9</h1>
+    <p>載入 QR 穩定版，並套用 OCR 強化參數。</p>
     <p id="msg">請稍等...</p>
   </main>
 <script>
@@ -21,13 +21,23 @@
     const stable='https://raw.githubusercontent.com/bottlesu492-art/invoice-scanner/d7e8208d4c257428f2abe1c76a83cd6c356ecfd7/v9.html?restore='+Date.now();
     const res=await fetch(stable,{cache:'no-store'});
     if(!res.ok) throw new Error('讀取穩定版失敗 HTTP '+res.status);
-    const html=await res.text();
+    let wrapper=await res.text();
+    const ocrPatch=String.raw`
+    const ocrPhoto=String.raw\`async function handlePhotoInput(e){const file=e.target.files&&e.target.files[0];if(!file)return;try{setStatus('正在強化發票照片');state.imageData=await enhanceReceiptImageV9(file);state.imageName=file.name;$('preview').src=state.imageData;setStatus('照片已強化，按「辨識文字」會把強化圖送到 Cloud Vision');}catch(err){state.imageData=await resizeImage(file);state.imageName=file.name;$('preview').src=state.imageData;setStatus('影像強化失敗，已改用原本照片：'+(err.message||err),'warn');}finally{e.target.value='';}}
+async function enhanceReceiptImageV9(file){const src=await readFile(file);const img=await loadImage(src);const scale=fitOcrScaleV9(img,1);const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));const ctx=c.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.drawImage(img,0,0,c.width,c.height);const data=ctx.getImageData(0,0,c.width,c.height);enhanceReceiptPixelsV9(data);ctx.putImageData(data,0,0);return c.toDataURL('image/jpeg',0.92);}
+function fitOcrScaleV9(img,base){const long=Math.max(img.width,img.height);return Math.min(base,2400/long)||1;}
+function enhanceReceiptPixelsV9(imageData){const p={contrast:.8,ink:2.8,highlight:1,sharp:1.6,local:5};const d=imageData.data,w=imageData.width,h=imageData.height,len=w*h;const gray=new Uint8ClampedArray(len);const hist=new Uint32Array(256);for(let i=0,px=0;i<d.length;i+=4,px++){const g=Math.round(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114);gray[px]=g;hist[g]++;}const lo=percentileV9(hist,len,.01);const hi=Math.max(lo+50,percentileV9(hist,len,.995));const norm=new Uint8ClampedArray(len);for(let px=0;px<len;px++){let v=(gray[px]-lo)*245/(hi-lo)+8;v=(v-128)*p.contrast+128;norm[px]=clampV9(v);}const r=p.local;for(let y=0;y<h;y++){for(let x=0;x<w;x++){const idx=y*w+x;let sum=0,count=0;for(let yy=-r;yy<=r;yy++){const ny=y+yy;if(ny<0||ny>=h)continue;for(let xx=-r;xx<=r;xx++){const nx=x+xx;if(nx<0||nx>=w)continue;sum+=norm[ny*w+nx];count++;}}const local=sum/count;let v=norm[idx];const darker=Math.max(0,local-v);if(darker>3)v-=darker*p.ink;if(x>0&&x<w-1&&y>0&&y<h-1&&p.sharp>0){const blur=(norm[idx-1]+norm[idx+1]+norm[idx-w]+norm[idx+w])/4;v+=(norm[idx]-blur)*p.sharp;}if(v>235)v=235+(v-235)*p.highlight;v=clampV9(v);const i=idx*4;d[i]=v;d[i+1]=v;d[i+2]=v;d[i+3]=255;}}}
+function percentileV9(hist,total,pct){let target=Math.max(1,Math.floor(total*pct)),sum=0;for(let i=0;i<hist.length;i++){sum+=hist[i];if(sum>=target)return i;}return 255;}
+function clampV9(v){return v<0?0:v>255?255:Math.round(v);}\`;
+    html=html.replace(/async function handlePhotoInput\\(e\\)\\{[\\s\\S]*?\\nasync function handleManualPhotoInput/, ocrPhoto+'\\nasync function handleManualPhotoInput');
+`;
+    wrapper=wrapper.replace('document.open();', ocrPatch+'\n    document.open();');
     document.open();
-    document.write(html);
+    document.write(wrapper);
     document.close();
   }catch(err){
     msg.className='error';
-    msg.textContent='v9 穩定版載入失敗：'+(err&&err.message?err.message:err);
+    msg.textContent='v9 載入失敗：'+(err&&err.message?err.message:err);
     const a=document.createElement('a');
     a.className='btn';
     a.href='https://bottlesu492-art.github.io/invoice-scanner/v8.html?x=backup';
