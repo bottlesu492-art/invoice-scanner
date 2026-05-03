@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>發票記帳掃描 v14</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef3f4;color:#172126;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.box{width:min(92vw,460px);padding:22px;border:1px solid #d9e1e5;border-radius:8px;background:#fff;box-shadow:0 16px 36px rgba(22,33,38,.08)}h1{margin:0 0 10px;font-size:22px}p{margin:0 0 14px;color:#66757f;line-height:1.6}.error{color:#b91c1c;white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:10px 14px;border-radius:8px;background:#0f766e;color:white;text-decoration:none;font-weight:700}
+  </style>
+</head>
+<body>
+  <main class="box">
+    <h1>正在載入 v14</h1>
+    <p>v14：QR 品項強制進備註、品項改成單行、Gemini 照片再縮小一點。</p>
+    <p id="msg">請稍等...</p>
+  </main>
+<script>
+(async function(){
+  const msg=document.getElementById('msg');
+  try{
+    const res=await fetch('v13.html?base=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('讀取 v13 失敗 HTTP ' + res.status);
+    let wrapper=await res.text();
+
+    const patchLines = [];
+    patchLines.push("html=html.replaceAll('v13','v14');");
+    patchLines.push("html=html.replace('state.imageData=await resizeImage(file,1400,0.82);', 'state.imageData=await resizeImage(file,1150,0.78);');");
+    patchLines.push("html=html.replace('v13 會先縮小照片，加快上傳和判讀。', 'v14 會先縮小照片，加快上傳和判讀；若太糊再調回高畫質。');");
+    patchLines.push("html=html.replace('備註只放品項與右側金額，每行一個品項，不要放警告文字。', '備註只放品項與右側金額，請用單行格式：1. 品項 金額；2. 品項 金額；不要換行，不要放警告文字。');");
+    patchLines.push("html=html.replace(/function parseQrItems\\(left,right\\)\\{[\\s\\S]*?\\nfunction decodeQrItemData/, " + JSON.stringify("function parseQrItems(left,right){if(!left||left.startsWith('**')||left.length<78)return'';let tail=left.slice(77);if(right&&right.length>2)tail+=right.startsWith('**')?right.slice(2):right;const parts=tail.split(':');if(parts.length<6)return'';const encoding=(parts[4]||'').trim();let data=parts.slice(5).join(':');data=decodeQrItemData(data,encoding);const tokens=data.split(':').map(cleanDisplayText).filter(Boolean);const rows=[];for(let i=0;i+2<tokens.length;i+=3){const name=tokens[i],qty=tokens[i+1],price=tokens[i+2];if(!name||!/[\\u4e00-\\u9fffA-Za-z0-9]/.test(name))continue;rows.push(`${name} x${qty} $${price}`);}if(rows.length)return formatItemsOneLineV14(rows);const fallback=cleanDisplayText(data);return looksReadable(fallback)?formatItemsOneLineV14(fallback):'';}\nfunction decodeQrItemData") + ");");
+    patchLines.push("html=html.replace(/function applyQrItemsToNote\\(item\\)\\{[\\s\\S]*?\\nfunction parseTaiwanInvoiceQr/, " + JSON.stringify("function formatItemsOneLineV14(value){const rows=Array.isArray(value)?value:String(value||'').split(/[\\n；;]+/).map(s=>s.trim()).filter(Boolean);return rows.map((row,i)=>`${i+1}. ${row.replace(/\\s+/g,' ').trim()}`).join('；');}\nfunction syncQrItemsToNoteV14(){const el=$('qrItems');if(!el)return;const text=String(el.textContent||'').trim();if(!text||/尚未讀取|沒有可靠品項|請再掃左碼|已讀取/.test(text))return;applyQrItemsToNote(text);}\nfunction applyQrItemsToNote(item){const note=$('note');if(!note||!item)return;const block=`QR品項：${formatItemsOneLineV14(item)}`;const current=note.value.trim();const cleaned=current.replace(/(?:^|\\n*)QR品項[:：][\\s\\S]*$/,'').trim();note.value=cleaned?`${cleaned}；${block}`:block;}\nfunction parseTaiwanInvoiceQr") + ");");
+    patchLines.push("html=html.replace('if(item)applyQrItemsToNote(item);setStatus(item?', 'if(item)applyQrItemsToNote(item);else syncQrItemsToNoteV14();setStatus(item?');");
+    patchLines.push("html=html.replace('note:r.note||\'\'', 'note:formatItemsOneLineV14(r.note||\'\')');");
+    patchLines.push("html=html.replace('note:payload.note};', 'note:formatItemsOneLineV14(payload.note)};');");
+
+    wrapper=wrapper.replace('document.open();', patchLines.join('\n') + '\n    document.open();');
+    document.open();
+    document.write(wrapper);
+    document.close();
+  }catch(err){
+    msg.className='error';
+    msg.textContent='v14 載入失敗：' + (err && err.message ? err.message : err);
+    const a=document.createElement('a');
+    a.className='btn';
+    a.href='v13.html?fallback=' + Date.now();
+    a.textContent='改開 v13';
+    document.querySelector('.box').appendChild(a);
+  }
+})();
+</script>
+</body>
+</html>
