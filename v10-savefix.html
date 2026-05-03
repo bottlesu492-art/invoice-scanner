@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>發票記帳掃描 v10 儲存修正版</title>
+  <title>發票記帳掃描 v10 簡化儲存版</title>
   <style>
     *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef3f4;color:#172126;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.box{width:min(92vw,460px);padding:22px;border:1px solid #d9e1e5;border-radius:8px;background:#fff;box-shadow:0 16px 36px rgba(22,33,38,.08)}h1{margin:0 0 10px;font-size:22px}p{margin:0 0 14px;color:#66757f;line-height:1.6}.error{color:#b91c1c;white-space:pre-wrap}.btn{display:inline-block;margin-top:8px;padding:10px 14px;border-radius:8px;background:#0f766e;color:white;text-decoration:none;font-weight:700}
   </style>
 </head>
 <body>
   <main class="box">
-    <h1>正在載入 v10 儲存修正版</h1>
-    <p>這版用 v10，加上儲存前檢查與較清楚的送出提示。</p>
+    <h1>正在載入 v10 簡化儲存版</h1>
+    <p>這版只送會計欄位到 Apps Script，不傳照片、OCR 原文、QR 左右碼。</p>
     <p id="msg">請稍等...</p>
   </main>
 <script>
@@ -21,7 +21,7 @@
     const res=await fetch('v10.html?base=' + Date.now(), {cache:'no-store'});
     if(!res.ok) throw new Error('讀取 v10 失敗 HTTP ' + res.status);
     let wrapper=await res.text();
-    const replacement = "async function saveInvoice(){const payload=buildPayload();if(!payload.invoiceNo&&!payload.totalAmount){setStatus('請至少填發票號碼或含稅總額','error');return;}const url=getGasUrl();const token=getApiToken();if(!url||!token){setStatus('缺少 GAS /exec 網址或 API token，請到第一設定重新貼上並按記住','error');$('setupPanel').classList.remove('hidden-ready');return;}if(!url.startsWith('https://script.google.com/macros/s/')||!url.endsWith('/exec')){setStatus('GAS 網址格式不對，必須是 Apps Script 部署後 /exec 結尾網址','error');$('setupPanel').classList.remove('hidden-ready');return;}const sendPayload={...payload};if(sendPayload.imageData&&sendPayload.imageData.length>900000){sendPayload.note=(sendPayload.note?sendPayload.note+'\\n\\n':'')+'照片太大，v10 儲存測試先不附圖。';sendPayload.imageData='';sendPayload.imageName='';}const body=JSON.stringify({token,payload:sendPayload});$('saveInvoice').disabled=true;setStatus('正在送到 Apps Script...');try{await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body});saveLocal(sendPayload);$('saveHint').textContent='已送出到 Apps Script；若 Sheet 沒出現，請重新部署 GAS 或檢查 token';setStatus('已送出。若 10 秒內 Google Sheet 沒新增，通常是 GAS token/部署版本/權限問題，不是 Gemini 判讀問題。');renderRecent(loadRecent());}catch(e){setStatus('送出失敗：'+(e.message||e),'error');}finally{$('saveInvoice').disabled=false;}}\nfunction saveLocal";
+    const replacement = "async function saveInvoice(){const payload=buildPayload();if(!payload.invoiceNo&&!payload.totalAmount){setStatus('請至少填發票號碼或含稅總額','error');return;}const url=getGasUrl();const token=getApiToken();if(!url||!token){setStatus('缺少 GAS /exec 網址或 API token，請到第一設定重新貼上並按記住','error');$('setupPanel').classList.remove('hidden-ready');return;}if(!url.startsWith('https://script.google.com/macros/s/')||!url.endsWith('/exec')){setStatus('GAS 網址格式不對，必須是 Apps Script 部署後 /exec 結尾網址','error');$('setupPanel').classList.remove('hidden-ready');return;}const sendPayload={sourceType:payload.sourceType,status:payload.status,invoiceNo:payload.invoiceNo,invoiceDate:payload.invoiceDate,sellerTaxId:payload.sellerTaxId,buyerTaxId:payload.buyerTaxId,totalAmount:payload.totalAmount,untaxedAmount:payload.untaxedAmount,taxAmount:payload.taxAmount,category:payload.category,payer:payload.payer,note:payload.note};const body=JSON.stringify({token,payload:sendPayload});$('saveInvoice').disabled=true;setStatus('正在送到 Apps Script，只送簡化會計欄位...');try{await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body});saveLocal(sendPayload);$('saveHint').textContent='已送出到 Apps Script；試算表只會寫入簡化欄位';setStatus('已送出。若 Google Sheet 沒新增，請檢查 GAS 是否已用新版 Code.gs 重新部署，或 token 是否一致。');renderRecent(loadRecent());}catch(e){setStatus('送出失敗：'+(e.message||e),'error');}finally{$('saveInvoice').disabled=false;}}\nfunction saveLocal";
     const patch = "html=html.replace(/async function saveInvoice\\(\\)\\{[\\s\\S]*?\\nfunction saveLocal/, " + JSON.stringify(replacement) + ");";
     wrapper=wrapper.replace('document.open();', patch + '\n    document.open();');
     document.open();
@@ -29,7 +29,7 @@
     document.close();
   }catch(err){
     msg.className='error';
-    msg.textContent='v10 儲存修正版載入失敗：' + (err && err.message ? err.message : err);
+    msg.textContent='v10 簡化儲存版載入失敗：' + (err && err.message ? err.message : err);
     const a=document.createElement('a');
     a.className='btn';
     a.href='v10.html?fallback=' + Date.now();
