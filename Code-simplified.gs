@@ -207,12 +207,16 @@ function ensureSheet_() {
     sheet = ss.insertSheet(CONFIG.sheetName);
   }
 
-  const headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
+  let headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
   const currentHeaders = headerRange.getDisplayValues()[0];
   const needsHeaders = HEADERS.some((header, index) => currentHeaders[index] !== header);
 
   if (needsHeaders) {
-    sheet.clear();
+    if (sheet.getLastRow() > 1 || currentHeaders.some(Boolean)) {
+      sheet.setName(`發票記帳_舊版備份_${Utilities.formatDate(new Date(), CONFIG.timezone, 'yyyyMMdd_HHmmss')}`);
+      sheet = ss.insertSheet(CONFIG.sheetName);
+      headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
+    }
     headerRange.setValues([HEADERS]);
     headerRange.setFontWeight('bold');
     sheet.setFrozenRows(1);
