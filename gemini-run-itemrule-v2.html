@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gemini 品項金額規則 v2</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef3f4;color:#172126;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.box{width:min(92vw,460px);padding:22px;border:1px solid #d9e1e5;border-radius:8px;background:#fff;box-shadow:0 16px 36px rgba(22,33,38,.08)}h1{margin:0 0 10px;font-size:22px}p{margin:0;color:#66757f;line-height:1.6}.error{color:#b91c1c;white-space:pre-wrap}.btn{display:inline-block;margin-top:12px;padding:10px 14px;border-radius:8px;background:#0f766e;color:#fff;text-decoration:none;font-weight:800}
+  </style>
+</head>
+<body>
+<main class="box">
+  <h1>正在載入 Gemini 品項金額規則 v2</h1>
+  <p id="msg">請稍等...</p>
+</main>
+<script>
+(async function(){
+  const msg=document.getElementById('msg');
+  try{
+    const res=await fetch('gemini-run.html?base=' + Date.now(), {cache:'no-store'});
+    if(!res.ok) throw new Error('讀取 Gemini 測試頁失敗 HTTP ' + res.status);
+    let html=await res.text();
+    html=html.replace('<title>Gemini 發票判讀測試</title>','<title>Gemini 品項金額規則 v2</title>');
+    html=html.replace('<h1>Gemini 發票判讀測試</h1>','<h1>Gemini 品項金額規則 v2</h1>');
+    html=html.replace('直接把原色照片交給 Gemini 看圖判斷欄位。這頁不會改 v9，也不會寫入試算表。','原色照片交給 Gemini 判讀，強化收銀機發票品項金額規則，並避免把警告寫進備註。');
+    html=html.replace(
+      "'含稅總額請抓實際交易總計/合計/總計/稅計後面的金額，不要抓現金、找零、累計點、本次點、電話、地址、流水號。',",
+      "'含稅總額請抓實際交易總計/合計/總計/稅計後面的金額，不要抓現金、找零、累計點、本次點、電話、地址、流水號。',\n    '台灣收銀機點陣字的 0 常常中間有斜線，看起來像 8；判讀數字時請注意 0 和 8 的差異。尤其日期、統編、發票號碼、金額中的 0 不要因斜線誤讀成 8。',\n    '收銀機發票的品項通常是左邊品項名稱、右邊靠右對齊金額。品項名稱裡可能有規格或商品名，例如「120元柴語錄」、「100元(柴)超」、「98元不沾黏剪」；這些左邊文字中的 120、100、98 不一定是本次金額。本次品項金額要優先讀同一行最右側靠右對齊的數字，例如右側的 188、90、81。',\n    '如果品項列左邊和右邊都有數字，請把左邊數字當作品名/規格的一部分，右邊最後一個獨立金額才當作該品項金額。總額也應該用各品項右側金額或總計列驗算，不要用品名裡的數字相加。',"
+    );
+    html=html.replace(
+      "'備註請放品項摘要，每行一個品項，含單價或金額更好。'",
+      "'備註只放品項摘要與品項金額，每行一個品項，格式盡量為「品項  金額」。不要在備註寫提醒、警告、總額不一致、看不清楚、需要人工確認等文字；這些放在 warnings 欄位即可。'"
+    );
+    html=html.replace(
+      "function buildNote(r){const lines=[];if(r.note)lines.push(String(r.note).trim());if(Array.isArray(r.warnings)&&r.warnings.length)lines.push('提醒:\\n'+r.warnings.join('\\n'));return lines.filter(Boolean).join('\\n\\n');}",
+      "function buildNote(r){return r.note?String(r.note).trim():'';}"
+    );
+    document.open();
+    document.write(html);
+    document.close();
+  }catch(err){
+    msg.className='error';
+    msg.textContent='載入失敗：' + (err && err.message ? err.message : err);
+    const a=document.createElement('a');
+    a.className='btn';
+    a.href='gemini-run.html?fallback=' + Date.now();
+    a.textContent='改開原本 Gemini 頁';
+    document.querySelector('.box').appendChild(a);
+  }
+})();
+</script>
+</body>
+</html>
