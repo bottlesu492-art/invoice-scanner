@@ -20,6 +20,8 @@ body{margin:0;background:#eef3f4;color:#172126;font-family:system-ui,-apple-syst
     page=page.replace('v49 會記住常用商家，辨識後可自動補正店名、統編與類別；所有欄位仍可手改。','');
 
     const extraPatches = String.raw`
+    html=html.replace(/<h1>發票記帳掃描 v49<\/h1><p>[\s\S]*?<\/p>/,'<h1>發票記帳掃描</h1>');
+    html=html.replace(/<div class="hint">[\s\S]*?<\/div>/g,'');
     html=html.replace('</style>','.confirm-status{margin:0 0 12px 0;max-width:none}.save-status{margin:0 0 10px;color:#64727a;font-size:13px;line-height:1.45}.save-status.error{color:#b91c1c}.save-status.ok{color:#0f766e}</style>');
     html=replaceRegex(html,/<header class="topbar"><div class="brand">([\s\S]*?)<\/div><div id="status" class="status">待命<\/div><\/header>/,"<header class=\"topbar\"><div class=\"brand\">$1</div></header>",'move status header');
     html=replaceRegex(html,/(<aside class="panel"><div class="panel-head"><h2>確認資料<\/h2><button[^>]*>清空<\/button><\/div><div class="panel-body">)<form/,"$1<div id=\"status\" class=\"status confirm-status\">待命</div><form",'insert status near form');
