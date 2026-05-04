@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>商家資料庫讀取測試</title>
+<style>
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#eef3f4;color:#172126;margin:0;padding:16px}.box{max-width:780px;margin:auto;background:#fff;border:1px solid #d9e1e5;border-radius:8px;padding:16px}.row{display:grid;gap:8px;margin:12px 0}input,button,pre{font:inherit}input{padding:10px;border:1px solid #d9e1e5;border-radius:8px}button{min-height:42px;border:0;border-radius:8px;background:#0f766e;color:#fff;font-weight:700}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f7f8;border:1px solid #d9e1e5;border-radius:8px;padding:12px;min-height:180px}.warn{color:#92400e}.ok{color:#0f766e}.bad{color:#b91c1c}
+</style>
+</head>
+<body>
+<div class="box">
+<h1>商家資料庫讀取測試</h1>
+<p>只測 GAS 讀取商家，不會寫入、不會花 Gemini 額度。</p>
+<div class="row"><label>GAS /exec 網址</label><input id="url"></div>
+<div class="row"><label>API token</label><input id="token"></div>
+<div class="row"><button id="run">測試讀取商家資料庫</button></div>
+<pre id="out">待命</pre>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+$('url').value=localStorage.getItem('gas-url')||'';
+$('token').value=localStorage.getItem('invoice-api-token')||'';
+$('run').onclick=async()=>{
+  const url=$('url').value.trim();
+  const token=$('token').value.trim();
+  localStorage.setItem('gas-url',url);
+  localStorage.setItem('invoice-api-token',token);
+  $('out').textContent='開始測試...\n';
+  await testJsonp(url,token);
+  await testFrame(url,token);
+};
+function log(msg,cls){$('out').textContent+=msg+'\n';}
+function testJsonp(baseUrl,token){return new Promise(resolve=>{
+  log('\n[1] JSONP 測試 action=vendors');
+  const cb='vendor_diag_'+Date.now();
+  const script=document.createElement('script');
+  const timer=setTimeout(()=>{cleanup();log('JSONP 逾時：script 沒有回來');resolve(false);},10000);
+  function cleanup(){clearTimeout(timer);delete window[cb];script.remove();}
+  window[cb]=data=>{cleanup();log('JSONP 回傳：');log(JSON.stringify(data,null,2));resolve(true);};
+  script.onerror=()=>{cleanup();log('JSONP script 載入失敗');resolve(false);};
+  try{
+    const u=new URL(baseUrl);
+    u.searchParams.set('action','vendors');
+    u.searchParams.set('token',token);
+    u.searchParams.set('callback',cb);
+    u.searchParams.set('t',Date.now());
+    log('URL: '+u.toString());
+    script.src=u.toString();
+    document.body.appendChild(script);
+  }catch(e){cleanup();log('JSONP URL 錯誤：'+(e.message||e));resolve(false);}
+});}
+function testFrame(baseUrl,token){return new Promise(resolve=>{
+  log('\n[2] iframe 測試 action=vendorsFrame');
+  const frame=document.createElement('iframe');
+  frame.style.cssText='width:1px;height:1px;position:absolute;left:-9999px;top:-9999px;border:0';
+  const timer=setTimeout(()=>{cleanup();log('iframe 逾時：沒有收到 postMessage');resolve(false);},10000);
+  function cleanup(){clearTimeout(timer);window.removeEventListener('message',onMessage);frame.remove();}
+  function onMessage(ev){const data=ev.data;if(!data||data.type!=='invoice-vendors')return;cleanup();log('iframe 回傳：');log(JSON.stringify(data,null,2));resolve(true);}
+  window.addEventListener('message',onMessage);
+  try{
+    const u=new URL(baseUrl);
+    u.searchParams.set('action','vendorsFrame');
+    u.searchParams.set('token',token);
+    u.searchParams.set('targetOrigin',location.origin);
+    u.searchParams.set('t',Date.now());
+    log('URL: '+u.toString());
+    frame.src=u.toString();
+    document.body.appendChild(frame);
+  }catch(e){cleanup();log('iframe URL 錯誤：'+(e.message||e));resolve(false);}
+});}
+</script>
+</body>
+</html>
