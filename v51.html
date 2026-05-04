@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>發票記帳掃描 v51</title>
+<style>
+body{margin:0;background:#eef3f4;color:#172126;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.box{max-width:760px;margin:40px auto;padding:20px;border:1px solid #d9e1e5;border-radius:8px;background:#fff;box-shadow:0 14px 34px rgba(22,33,38,.08)}.err{color:#b91c1c;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="box" id="loader">正在載入 v51：商家資料庫重讀與狀態欄移位...</div>
+<script>
+(async function(){
+  const loader=document.getElementById('loader');
+  try{
+    let page=await fetch('v49.html?base='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('讀不到 v49.html，HTTP '+r.status);return r.text();});
+    page=page.replaceAll('發票記帳掃描 v49','發票記帳掃描 v51');
+    page=page.replace('正在載入 v49：商家記憶 + 超廣角 OCR...','正在載入 v51：商家資料庫重讀與狀態欄移位...');
+    page=page.replace('v49 會記住常用商家，辨識後可自動補正店名、統編與類別；所有欄位仍可手改。','v51 會先讀商家資料庫，OCR 後與儲存前都會檢查；狀態提示放在確認資料旁，所有欄位仍可手改。');
+
+    const extraPatches = String.raw`
+    html=html.replace('</style>','.confirm-status{margin:0 0 12px 0;max-width:none}</style>');
+    html=replaceRegex(html,/<header class="topbar"><div class="brand">([\s\S]*?)<\/div><div id="status" class="status">待命<\/div><\/header>/,"<header class=\"topbar\"><div class=\"brand\">$1</div></header>",'move status header');
+    html=replaceRegex(html,/(<aside class="panel"><div class="panel-head"><h2>確認資料<\/h2><button[^>]*>清空<\/button><\/div><div class="panel-body">)<form/,"$1<div id=\"status\" class=\"status confirm-status\">待命</div><form",'insert status near form');
+    html=replaceRegex(html,/function init\(\)\{bindEvents\(\);loadSettings\(\);setupMoneySync\(\);renderRecent\(loadRecent\(\)\);loadVendors\(\);\}/,"function init(){bindEvents();loadSettings();setupMoneySync();renderRecent(loadRecent());loadVendors();bindSaveHintRefresh();}",'init save hint refresh');
+    html=replaceRegex(html,/function loadVendors\(\)\{[\s\S]*?\}function jsonp/,"function bindSaveHintRefresh(){const form=$('invoiceForm');if(!form)return;form.querySelectorAll('input,select,textarea').forEach(el=>{el.addEventListener('input',()=>{$('saveHint').textContent='確認後寫入試算表';});el.addEventListener('change',()=>{$('saveHint').textContent='確認後寫入試算表';});});}function loadVendors(force=false){const url=getGasUrl();const token=getApiToken();if(!url||!token){state.vendorLoaded=false;setStatus('尚未設定 GAS 或 token，無法讀商家資料庫','warn');return Promise.resolve(false);}if(state.vendorLoading&&!force)return state.vendorLoading;state.vendorLoading=jsonp(url,{action:'vendors',token,t:Date.now()}).then(res=>{if(res&&res.ok&&Array.isArray(res.vendors)){state.vendors=res.vendors;state.vendorLoaded=true;try{localStorage.setItem('invoice-vendors-cache',JSON.stringify(res.vendors));}catch(e){}setStatus('已讀取商家資料庫：'+state.vendors.length+' 筆');return true;}state.vendorLoaded=false;setStatus('商家資料庫讀取失敗：'+((res&&res.error)||'GAS 沒有回傳 vendors'),'warn');return false;}).catch(err=>{let cached=[];try{cached=JSON.parse(localStorage.getItem('invoice-vendors-cache')||'[]');}catch(e){}if(cached.length){state.vendors=cached;state.vendorLoaded=true;setStatus('商家資料庫讀取失敗，先用本機快取：'+cached.length+' 筆','warn');return true;}state.vendorLoaded=false;setStatus('商家資料庫讀取失敗：'+(err.message||err),'warn');return false;}).finally(()=>{state.vendorLoading=null;});return state.vendorLoading;}function jsonp",'load vendors visible retry');
+    html=replaceRegex(html,/function handleVendorAfterOcr\(\)\{[\s\S]*?\}function offerAddVendor/,"async function handleVendorAfterOcr(){if(!($('sellerName').value||$('sellerTaxId').value))return;if(!state.vendorLoaded){const loaded=await loadVendors(true);if(!loaded){setStatus('商家資料庫還沒讀到，這次先不做常用商家判斷','warn');return;}}const match=findVendorMatch();if(match){applyVendor(match);return;}offerAddVendor();}function offerAddVendor",'ocr vendor reload');
+    html=replaceRegex(html,/function setupMoneySync\(\)/,"async function ensureVendorBeforeSave(){const tax=String($('sellerTaxId').value||'').replace(/\\D/g,'');const name=String($('sellerName').value||'').trim();if(!tax&&!name)return true;if(!state.vendorLoaded){const loaded=await loadVendors(true);if(!loaded){setStatus('商家資料庫還沒讀到，先只儲存發票，不新增常用商家','warn');return true;}}if(tax&&state.vendors&&state.vendors.length){const byTax=state.vendors.find(v=>String(v.sellerTaxId||'').replace(/\\D/g,'')===tax);if(byTax){applyVendor(byTax);return true;}}const match=findVendorMatch();if(match){applyVendor(match);return true;}return confirmAddVendorBeforeSave();}function confirmAddVendorBeforeSave(){const currentName=$('sellerName').value.trim();const currentTax=$('sellerTaxId').value.trim();const ok=confirm('商家資料庫沒有目前這組店名/統編。要加入常用商家嗎？\\n\\n你可以先改正店名、統編和費用類別，之後同店家會自動帶入。');if(!ok)return true;const sellerName=prompt('正確賣方名稱',currentName)||'';const sellerTaxId=prompt('正確賣方統編',currentTax)||'';const category=prompt('預設費用類別',$('category').value||'')||'';const keywords=prompt('店名關鍵字，用逗號分隔',sellerName||currentName)||'';const vendor={sellerName:sellerName.trim(),sellerTaxId:sellerTaxId.replace(/\\D/g,''),category:category.trim(),keywords:keywords.trim()};if(!vendor.sellerName&&!vendor.sellerTaxId)return true;applyVendor(vendor);state.vendors.push(vendor);state.vendorLoaded=true;addVendorRemote(vendor);return true;}function setupMoneySync()",'vendor before save helpers');
+    html=replaceRegex(html,/async function saveInvoice\(\)\{const payload=buildPayload\(\);/,"async function saveInvoice(){if(!(await ensureVendorBeforeSave()))return;const payload=buildPayload();",'save vendor check');
+    html=html.replace("$('saveHint').textContent='已送出到 Apps Script';","$('saveHint').textContent='已送出';");
+`;
+    page=page.replace('    html=patchGeminiFunction(html);', extraPatches + '    html=patchGeminiFunction(html);');
+
+    document.open();
+    document.write(page);
+    document.close();
+  }catch(err){
+    loader.className='box err';
+    loader.textContent=(err&&err.stack)||String(err);
+  }
+})();
+</script>
+</body>
+</html>
