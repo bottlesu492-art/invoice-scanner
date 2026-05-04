@@ -29,9 +29,9 @@ body{margin:0;background:#eef3f4;color:#172126;font-family:system-ui,-apple-syst
     const marker="    page=page.replace('    html=patchGeminiFunction(html);', extraPatches + '    html=patchGeminiFunction(html);');";
     if(!page.includes(marker)) throw new Error('找不到正式頁補丁插入點');
     page=page.replace(marker,"    page=page.replace('    html=patchGeminiFunction(html);', extraPatches + payerPatches + '    html=patchGeminiFunction(html);');");
-    document.open();
-    document.write(page);
-    document.close();
+    const scriptMatch=page.match(/<script>([\s\S]*?)<\/script>/);
+    if(!scriptMatch) throw new Error('找不到正式頁 script');
+    eval(scriptMatch[1]);
   }catch(err){
     loader.className='box err';
     loader.textContent=(err&&err.stack)||String(err);
