@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>發票記帳掃描 v59</title>
+<style>
+body{margin:0;background:#eef3f4;color:#172126;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.box{max-width:760px;margin:40px auto;padding:20px;border:1px solid #d9e1e5;border-radius:8px;background:#fff;box-shadow:0 14px 34px rgba(22,33,38,.08)}.err{color:#b91c1c;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="box" id="loader">正在載入 v59：儲存訊息回到儲存列...</div>
+<script>
+(async function(){
+  const loader=document.getElementById('loader');
+  try{
+    let page=await fetch('v58.html?base='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('讀不到 v58.html，HTTP '+r.status);return r.text();});
+    page=page.replaceAll('發票記帳掃描 v58','發票記帳掃描 v59');
+    page=page.replace('正在載入 v58：單層 QR 商家補正 + 發票號碼防呆...','正在載入 v59：儲存訊息回到儲存列...');
+    page=page.replace('v58 從 GAS 商家資料庫讀資料；QR/OCR 都會補店名與類別，儲存會擋同一張發票號碼。','v59 掃描狀態維持在上方；儲存成功/失敗顯示在儲存鈕上方。');
+
+    const extraPatches = String.raw`
+    html=html.replace('setStatus(\'正在送到 Apps Script...\');try{const res=await postFrame',"$('saveHint').textContent='正在送到 Apps Script...';try{const res=await postFrame");
+    html=html.replace("$('saveHint').textContent='已送出';setStatus('已送出，寫入第 '+res.row+' 列');renderRecent(loadRecent());","$('saveHint').textContent='已送出，寫入第 '+res.row+' 列';renderRecent(loadRecent());");
+    html=html.replace("catch(e){setStatus('儲存失敗：'+(e.message||e),'error');}finally{$('saveInvoice').disabled=false;}","catch(e){$('saveHint').textContent='儲存失敗：'+(e.message||e);}finally{$('saveInvoice').disabled=false;}");
+`;
+    page=page.replace('    html=patchGeminiFunction(html);', extraPatches + '    html=patchGeminiFunction(html);');
+
+    document.open();
+    document.write(page);
+    document.close();
+  }catch(err){
+    loader.className='box err';
+    loader.textContent=(err&&err.stack)||String(err);
+  }
+})();
+</script>
+</body>
+</html>
