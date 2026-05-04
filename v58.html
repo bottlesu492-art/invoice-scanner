@@ -21,6 +21,7 @@ body{margin:0;background:#eef3f4;color:#172126;font-family:system-ui,-apple-syst
 
     const extraPatches = String.raw`
     html=html.replace(/<h1>發票記帳掃描 v49<\/h1><p>[\s\S]*?<\/p>/,'<h1>發票記帳掃描</h1>');
+    html=html.replace(/<div class="brand"><h1>([\s\S]*?)<\/h1><p>[\s\S]*?<\/p><\/div>/,'<div class="brand"><h1>$1</h1></div>');
     html=html.replace(/<div class="hint">[\s\S]*?<\/div>/g,'');
     html=html.replace('</style>','.confirm-status{margin:0 0 12px 0;max-width:none}.save-status{margin:0 0 10px;color:#64727a;font-size:13px;line-height:1.45}.save-status.error{color:#b91c1c}.save-status.ok{color:#0f766e}</style>');
     html=replaceRegex(html,/<header class="topbar"><div class="brand">([\s\S]*?)<\/div><div id="status" class="status">待命<\/div><\/header>/,"<header class=\"topbar\"><div class=\"brand\">$1</div></header>",'move status header');
