@@ -13,10 +13,9 @@ body{margin:0;background:#eef3f4;color:#172126;font-family:system-ui,-apple-syst
 <script>
 (async function(){
   const loader=document.getElementById('loader');
-  try{
-    let page=await fetch('index.html?base='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('讀不到 index.html，HTTP '+r.status);return r.text();});
-    const payerPatches = String.raw`
+  const payerPatches = String.raw`
     html=html.replace('vendors:[],vendorLoaded:false,ocrStream:null','vendors:[],vendorLoaded:false,payers:[],buyerTaxIds:[],settingsLoaded:false,ocrStream:null');
+    html=html.replace('document.addEventListener(\'DOMContentLoaded\',init);',"if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();");
     html=html.replace('loadVendors();bindSaveHintRefresh();','loadVendors();loadInvoiceSettings();bindSaveHintRefresh();');
     html=html.replace("setStatus('已記住 GAS 與 Gemini 設定');","setStatus('已記住 GAS 與 Gemini 設定');loadVendors(true);loadInvoiceSettings(true);");
     html=html.replace('applyData(parsed);setTimeout(handleVendorAfterQr,0);const item','applyData(parsed);autoFillBuyerTaxIdFromText(state.qrLeft+"\\n"+state.qrRight);setTimeout(handleVendorAfterQr,0);const item');
@@ -26,12 +25,41 @@ body{margin:0;background:#eef3f4;color:#172126;font-family:system-ui,-apple-syst
     html=html.replace("throw new Error(lastError||'所有 Gemini 模型都失敗');","throw new Error(lastError||'Gemini 3.1 Flash Lite Preview 失敗，已停止，不會改用 2.5 額度');");
     html=html.replace('function setupMoneySync(){',"function loadInvoiceSettings(force=false){const url=getGasUrl();const token=getApiToken();if(!url||!token){return Promise.resolve(false);}if(state.settingsLoading&&!force)return state.settingsLoading;state.settingsLoading=postFrame(url,{token,action:'settingsFrame',targetOrigin:location.origin},'invoice-settings').then(res=>{if(res&&res.ok){state.payers=Array.isArray(res.payers)?res.payers:[];state.buyerTaxIds=Array.isArray(res.buyerTaxIds)?res.buyerTaxIds.map(v=>String(v||'').replace(/\\D/g,'')).filter(v=>v.length===8):[];state.settingsLoaded=true;setupPayerInput();autoFillBuyerTaxIdFromText(collectKnownText());return true;}state.settingsLoaded=false;setStatus('付款人/買方統編名單讀取失敗：'+((res&&res.error)||'GAS 沒有回傳 settings'),'warn');return false;}).catch(err=>{state.settingsLoaded=false;setStatus('付款人/買方統編名單讀取失敗：'+(err.message||err),'warn');return false;}).finally(()=>{state.settingsLoading=null;});return state.settingsLoading;}function setupPayerInput(){const payer=$('payer');if(!payer)return;let list=$('payerOptions');if(!list){list=document.createElement('datalist');list.id='payerOptions';document.body.appendChild(list);}payer.setAttribute('list','payerOptions');list.innerHTML='';state.payers.forEach(name=>{const opt=document.createElement('option');opt.value=name;list.appendChild(opt);});}function collectKnownText(){return [state.qrLeft,state.qrRight,state.ocrText,$('note')&&$('note').value,$('buyerTaxId')&&$('buyerTaxId').value].join('\\n');}function autoFillBuyerTaxIdFromText(text){const current=String($('buyerTaxId').value||'').replace(/\\D/g,'');if(current.length===8)return;const hay=String(text||'');const hit=(state.buyerTaxIds||[]).find(id=>id&&hay.includes(id));if(hit){$('buyerTaxId').value=hit;if(window.recalcMoney)window.recalcMoney();setSaveStatus('確認後寫入試算表');}}function setupMoneySync(){");
 `;
+  function injectPatches(page){
     const marker="    page=page.replace('    html=patchGeminiFunction(html);', extraPatches + '    html=patchGeminiFunction(html);');";
     if(!page.includes(marker)) throw new Error('找不到正式頁補丁插入點');
-    page=page.replace(marker,"    page=page.replace('    html=patchGeminiFunction(html);', extraPatches + payerPatches + '    html=patchGeminiFunction(html);');");
-    const scriptMatch=page.match(/<script>([\s\S]*?)<\/script>/);
-    if(!scriptMatch) throw new Error('找不到正式頁 script');
-    eval(scriptMatch[1]);
+    return page.replace(marker,"    page=page.replace('    html=patchGeminiFunction(html);', extraPatches + payerPatches + '    html=patchGeminiFunction(html);');");
+  }
+  function getScript(html,label){
+    const m=html.match(/<script>([\s\S]*?)<\/script>/);
+    if(!m) throw new Error('找不到 '+label+' script');
+    return m[1];
+  }
+  async function captureEval(script){
+    const oldOpen=document.open, oldWrite=document.write, oldClose=document.close;
+    let captured='';
+    document.open=function(){captured='';};
+    document.write=function(s){captured+=String(s||'');};
+    document.close=function(){};
+    try{ await eval(script); }
+    finally{ document.open=oldOpen; document.write=oldWrite; document.close=oldClose; }
+    return captured;
+  }
+  function renderFinal(html){
+    html=html.replace("document.addEventListener('DOMContentLoaded',init);","if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();");
+    const script=getScript(html,'app');
+    const withoutScript=html.replace(/<script>[\s\S]*?<\/script>/,'');
+    document.open();
+    document.write(withoutScript);
+    document.close();
+    eval(script);
+  }
+  try{
+    let indexPage=await fetch('index.html?base='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('讀不到 index.html，HTTP '+r.status);return r.text();});
+    indexPage=injectPatches(indexPage);
+    const v49Page=await captureEval(getScript(indexPage,'index'));
+    const finalPage=await captureEval(getScript(v49Page,'v49'));
+    renderFinal(finalPage);
   }catch(err){
     loader.className='box err';
     loader.textContent=(err&&err.stack)||String(err);
